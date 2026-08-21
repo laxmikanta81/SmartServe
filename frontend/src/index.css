@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-slate-900 text-slate-100 font-sans antialiased selection:bg-emerald-500 selection:text-white;
+}
+
+/* Global Input Text Styling */
+input, textarea, select {
+  color: #000000; /* Pure dark black text */
+}
+
+/* Optional: Style placeholder text color */
+input::placeholder, 
+textarea::placeholder {
+  color: #64748b; /* Slate-500 for a clean look */
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}

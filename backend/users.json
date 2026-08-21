@@ -1,0 +1,23 @@
+[
+  {
+    "id": 1,
+    "email": "admin@plateai.com",
+    "password": "password123",
+    "name": "Maya Sharma",
+    "role": "Admin"
+  },
+  {
+    "id": 2,
+    "email": "ngo@plateai.com",
+    "password": "password123",
+    "name": "Partner NGO",
+    "role": "NGO"
+  },
+  {
+    "id": 3,
+    "name": "ma",
+    "email": "ma@123",
+    "password": "ma",
+    "role": "Admin"
+  }
+]
