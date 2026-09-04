@@ -7,8 +7,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const JWT_SECRET = 'plateai-secret-key';
-const MONGO_URI = 'mongodb://localhost:27017/plateai';
+const JWT_SECRET = 'smartserve-secret-key';
+const MONGO_URI = 'mongodb://localhost:27017/smartserve';
 
 // Connect to MongoDB
 mongoose.connect(MONGO_URI)
@@ -231,7 +231,7 @@ app.post('/api/meals', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH Meal status: Restricted to Admins only (Fixed to handle both MongoDB _id and custom mealId)
+// PATCH Meal status: Restricted to Admins only
 app.patch('/api/meals/:id/serve', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const idParam = req.params.id;
@@ -282,7 +282,6 @@ app.post('/api/attendance-signals', authenticateToken, requireAdmin, async (req,
 });
 
 // --- SURPLUS FOOD & REGISTER ROUTES ---
-// GET Surplus: Available to all users so recipients can see active surplus food items
 app.get('/api/surplus', authenticateToken, async (req, res) => {
   try {
     const surplusList = await Surplus.find({}).sort({ createdAt: -1 });
@@ -292,7 +291,6 @@ app.get('/api/surplus', authenticateToken, async (req, res) => {
   }
 });
 
-// POST Surplus: Restricted to Admins only
 app.post('/api/surplus', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const newSurplus = new Surplus({
@@ -307,7 +305,6 @@ app.post('/api/surplus', authenticateToken, requireAdmin, async (req, res) => {
   }
 });
 
-// PATCH Surplus verify: Restricted to Admins only
 app.patch('/api/surplus/:id/verify', authenticateToken, requireAdmin, async (req, res) => {
   try {
     const surplusId = req.params.id;
@@ -317,6 +314,32 @@ app.patch('/api/surplus/:id/verify', authenticateToken, requireAdmin, async (req
     );
     const surplusList = await Surplus.find({}).sort({ createdAt: -1 });
     res.json({ success: true, surplusList });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// --- DYNAMIC IMPACT ANALYTICS ROUTE ---
+app.get('/api/impact', authenticateToken, async (req, res) => {
+  try {
+    const surplusList = await Surplus.find({});
+    let calculatedMealsSaved = 3420;
+
+    surplusList.forEach(item => {
+      if (item.prepared && item.consumed) {
+        calculatedMealsSaved += Math.max(0, item.prepared - item.consumed);
+      } else if (item.quantity) {
+        const match = item.quantity.match(/(\d+)/);
+        if (match) calculatedMealsSaved += parseInt(match[1], 10);
+      }
+    });
+
+    res.json({
+      totalMealsSaved: calculatedMealsSaved,
+      co2AvertedKg: Math.round(calculatedMealsSaved * 1.5),
+      peopleFed: Math.round(calculatedMealsSaved * 0.375),
+      communityPartnersCount: 6
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

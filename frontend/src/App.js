@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
+
+// Use local backend URL to prevent CORS/tunnel errors
 const API_BASE = 'http://localhost:5000/api';
+//const API_BASE= 'https://rocket-glitzy-amusable.ngrok-free.dev/api';
 
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('plateai_token') || '');
-  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('plateai_user') || 'null'));
+  const [token, setToken] = useState(localStorage.getItem('smartserve_token') || '');
+  const [currentUser, setCurrentUser] = useState(JSON.parse(localStorage.getItem('smartserve_user') || 'null'));
   
   const [authMode, setAuthMode] = useState('signin');
   const [emailInput, setEmailInput] = useState('');
@@ -14,7 +17,6 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('overview');
   
-  // View mode is derived directly from the user's permanent role (set at registration)
   const isAdminView = currentUser?.role === 'Admin / Canteen manager' || currentUser?.role === 'Admin';
 
   const [overviewData, setOverviewData] = useState(null);
@@ -83,8 +85,8 @@ function App() {
       if (!res.ok) throw new Error(data.error || 'Login failed');
       setToken(data.token);
       setCurrentUser(data.user);
-      localStorage.setItem('plateai_token', data.token);
-      localStorage.setItem('plateai_user', JSON.stringify(data.user));
+      localStorage.setItem('smartserve_token', data.token);
+      localStorage.setItem('smartserve_user', JSON.stringify(data.user));
     } catch (err) {
       setAuthError(err.message);
     }
@@ -103,8 +105,8 @@ function App() {
       if (!res.ok) throw new Error(data.error || 'Registration failed');
       setToken(data.token);
       setCurrentUser(data.user);
-      localStorage.setItem('plateai_token', data.token);
-      localStorage.setItem('plateai_user', JSON.stringify(data.user));
+      localStorage.setItem('smartserve_token', data.token);
+      localStorage.setItem('smartserve_user', JSON.stringify(data.user));
     } catch (err) {
       setAuthError(err.message);
     }
@@ -113,11 +115,18 @@ function App() {
   const handleLogout = () => {
     setToken('');
     setCurrentUser(null);
-    localStorage.removeItem('plateai_token');
-    localStorage.removeItem('plateai_user');
+    localStorage.removeItem('smartserve_token');
+    localStorage.removeItem('smartserve_user');
   };
 
-  // Fetch initial data per user
+  const fetchImpactData = () => {
+    if (!token) return;
+    fetch(`${API_BASE}/impact`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(res => res.json())
+      .then(data => { if (data) setImpactData(data); })
+      .catch(() => {});
+  };
+
   useEffect(() => {
     if (!token) return;
     fetch(`${API_BASE}/overview`, { headers: { Authorization: `Bearer ${token}` } })
@@ -144,9 +153,10 @@ function App() {
       .then(res => res.json())
       .then(data => { if (data) setSurplusList(data); })
       .catch(() => {});
+
+    fetchImpactData();
   }, [token]);
 
-  // Automatic weather fetch when opening website or navigating to demand tab
   useEffect(() => {
     if (!token || activeTab !== 'demand') return;
 
@@ -170,9 +180,7 @@ function App() {
             }
           }));
         }
-      } catch (err) {
-        // Silent offline fallback
-      }
+      } catch (err) {}
     };
 
     autoSyncWeather();
@@ -321,6 +329,7 @@ function App() {
       .then(data => {
         if (data.success) {
           setSurplusList(data.surplusList);
+          fetchImpactData();
           setForecastMessage('Surplus recorded and saved to database successfully!');
           setTimeout(() => setForecastMessage(''), 4000);
         }
@@ -339,8 +348,26 @@ function App() {
     })
       .then(res => res.json())
       .then(data => {
-        if (data.success) setSurplusList(data.surplusList);
+        if (data.success) {
+          setSurplusList(data.surplusList);
+          fetchImpactData();
+        }
       }).catch(() => {});
+  };
+
+  const handleToggleRecipientStatus = (id) => {
+    if (!isAdminView) {
+      setForecastMessage('Permission denied: Recipient view cannot update partner status.');
+      setTimeout(() => setForecastMessage(''), 4000);
+      return;
+    }
+    setRecipientsList(recipientsList.map(rec => {
+      if (rec.id === id) {
+        const nextStatus = rec.status === 'Pending match' ? 'Connected' : 'Pending match';
+        return { ...rec, status: nextStatus };
+      }
+      return rec;
+    }));
   };
 
   const handleExportCSV = () => {
@@ -386,7 +413,7 @@ function App() {
         <div className="lg:w-7/12 relative bg-[#142A1E] text-white p-12 flex flex-col justify-between overflow-hidden min-h-[400px] lg:min-h-screen">
           <div className="absolute inset-0 opacity-40 bg-cover bg-center mix-blend-overlay" style={{ backgroundImage: `url('https://images.unsplash.com/photo-1556910103-1c02745aae4d?q=80&w=1200&auto=format&fit=crop')` }} />
           <div className="absolute inset-0 bg-gradient-to-t from-[#142A1E] via-transparent to-transparent" />
-          <div className="relative z-10"><p className="text-[11px] font-bold tracking-widest text-[#D1F247] uppercase">PLATEAI · FOOD WITH PURPOSE</p></div>
+          <div className="relative z-10"><p className="text-[11px] font-bold tracking-widest text-[#D1F247] uppercase">SMARTSERVE · FOOD WITH PURPOSE</p></div>
           <div className="relative z-10 max-w-xl my-auto py-12">
             <h1 className="text-5xl lg:text-7xl font-extrabold tracking-tight mb-6 leading-none">Serve what matters.</h1>
             <p className="text-gray-300 text-base lg:text-lg">A calmer way to plan meals, protect surplus, and move good food to people who need it.</p>
@@ -445,7 +472,7 @@ function App() {
         <div>
           <div className="mb-8 pt-2">
             <p className="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-1">WORKSPACE</p>
-            <p className="text-xl font-bold tracking-tight text-white">PlateAI</p>
+            <p className="text-xl font-bold tracking-tight text-white">SmartServe</p>
           </div>
           <nav className="space-y-1">
             {['Overview', 'Demand forecast', 'Meals & attendance', 'Surplus food', 'Recipients', 'Impact analytics'].map((item) => {
@@ -478,7 +505,7 @@ function App() {
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-[#F4F6F4] px-10 py-6 flex justify-between items-center">
           <div>
-            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">PLATEAI WORKSPACE</p>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-widest">SMARTSERVE WORKSPACE</p>
           </div>
           <div className="flex items-center gap-4">
             <button className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600 shadow-sm">🔔</button>
@@ -491,7 +518,7 @@ function App() {
         <main className="flex-1 px-10 pb-12 overflow-y-auto">
           {!isAdminView && (
             <div className="mb-6 p-4 bg-amber-50 text-amber-800 text-xs font-bold rounded-xl border border-amber-200 flex items-center justify-between">
-              <span>⚠️ Recipient View Active: Management actions (forecasting, surplus recording, verification, and meal planning) are disabled based on your permanent account role.</span>
+              <span>⚠️ Recipient View Active: Management actions (forecasting, surplus recording, verification, partner toggling, and meal planning) are disabled based on your permanent account role.</span>
             </div>
           )}
 
@@ -589,12 +616,11 @@ function App() {
               </div>
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-                {/* Left Form Box (2 columns wide) */}
                 <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-sm border border-gray-100 space-y-6">
                   <div className="flex justify-between items-center pb-2 border-b border-gray-100">
                     <div>
                       <h3 className="text-lg font-extrabold text-gray-900">Build a forecast</h3>
-                      <p className="text-xs text-gray-400">Local model + GPT-5.4 planning note</p>
+                      <p className="text-xs text-gray-400">Local model + GPT planning note</p>
                     </div>
                     <span className="px-3 py-1 bg-emerald-50 text-[#1A7B48] text-xs font-bold rounded-full border border-emerald-100 flex items-center gap-1">
                       <span>✨</span> Explainable
@@ -727,7 +753,6 @@ function App() {
                   )}
                 </div>
 
-                {/* Right Live Context Weather Panel (1 column wide) */}
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 space-y-6">
                   <div>
                     <span className="text-[10px] font-bold text-[#1A7B48] uppercase tracking-widest block mb-1">LIVE CONTEXT</span>
@@ -1016,6 +1041,7 @@ function App() {
                       <th className="py-3 px-6">Contact Person</th>
                       <th className="py-3 px-6">Type</th>
                       <th className="py-3 px-6">Status</th>
+                      <th className="py-3 px-6">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-sm">
@@ -1028,6 +1054,16 @@ function App() {
                           <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${rec.status === 'Connected' ? 'bg-emerald-50 text-[#1A7B48]' : 'bg-amber-50 text-amber-700'}`}>
                             {rec.status}
                           </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          {isAdminView && (
+                            <button
+                              onClick={() => handleToggleRecipientStatus(rec.id)}
+                              className="px-3 py-1 bg-gray-900 hover:bg-black text-white text-xs font-bold rounded-lg transition-colors"
+                            >
+                              {rec.status === 'Pending match' ? 'Connect' : 'Set Pending'}
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -1067,7 +1103,6 @@ function App() {
         </main>
       </div>
 
-      {/* Add Meal Modal */}
       {showAddMealModal && isAdminView && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
@@ -1126,7 +1161,6 @@ function App() {
         </div>
       )}
 
-      {/* Add Recipient Modal */}
       {showRecipientModal && isAdminView && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-xl">
